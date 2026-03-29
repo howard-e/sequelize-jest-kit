@@ -396,7 +396,6 @@ By default `makeMockModels` and `listModels` will both look for your models in f
 
 ### Branches
 
-<!-- prettier-ignore -->
 | Branch | Status | Coverage | Audit | Notes |
 | ------ | ------ | -------- | ----- | ----- |
 | `develop` | [![CircleCI](https://circleci.com/gh/howard-e/sequelize-jest-kit/tree/develop.svg?style=svg)](https://circleci.com/gh/howard-e/sequelize-jest-kit/tree/develop) | [![codecov](https://codecov.io/gh/howard-e/sequelize-jest-kit/branch/develop/graph/badge.svg)](https://codecov.io/gh/howard-e/sequelize-jest-kit) | [![Vulnerabilities](https://snyk.io/test/github/howard-e/sequelize-jest-kit/develop/badge.svg)](https://snyk.io/test/github/howard-e/sequelize-jest-kit/develop) | Work in progress |
