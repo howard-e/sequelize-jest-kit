@@ -16,19 +16,15 @@
   "engines": {
     "node": ">= 8.10.0"
   },
-  "files": [
-    "CONTRIBUTING.md",
-    "src",
-    "logo/horizontal.svg"
-  ],
+  "files": ["CONTRIBUTING.md", "src", "logo/horizontal.svg"],
   "directories": {
     "lib": "src",
     "test": "test"
   },
   "scripts": {
     "eslint-check": "eslint --print-config src/index.js | eslint-config-prettier-check",
-    "lint": "eslint .",
-    "prettier": "prettier --write '**/*.{js,json,md}'",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
     "test": "npm run test:unit",
     "test:unit": "NODE_ENV=test jest ./test/unit/ --setupFilesAfterEnv ./test/unitTestHelper.js",
     "test:unit:cov": "NODE_ENV=test jest ./test/unit/ --coverage --setupFilesAfterEnv ./test/unitTestHelper.js",
@@ -42,13 +38,7 @@
     "url": "https://github.com/howard-e/sequelize-jest-kit/issues"
   },
   "homepage": "https://github.com/howard-e/sequelize-jest-kit#readme",
-  "keywords": [
-    "sequelize",
-    "mock",
-    "mocking",
-    "unit-testing",
-    "jest"
-  ],
+  "keywords": ["sequelize", "mock", "mocking", "unit-testing", "jest"],
   "devDependencies": {
     "@biomejs/biome": "2.4.9",
     "eslint": "^8.57.0",
@@ -76,9 +66,7 @@
     "printWidth": 100
   },
   "lint-staged": {
-    "**/*.{js,json,md}": [
-      "prettier --write"
-    ]
+    "**/*.{js,json,md}": ["prettier --write"]
   },
   "nyc": {
     "check-coverage": true,
@@ -87,16 +75,9 @@
     "statements": 100,
     "functions": 100,
     "branches": 100,
-    "include": [
-      "src/**/*.js"
-    ],
-    "exclude": [
-      "index.js"
-    ],
-    "reporter": [
-      "lcov",
-      "text"
-    ],
+    "include": ["src/**/*.js"],
+    "exclude": ["index.js"],
+    "reporter": ["lcov", "text"],
     "all": true,
     "cache": true
   },
