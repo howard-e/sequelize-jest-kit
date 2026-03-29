@@ -2,10 +2,11 @@
 
 A collection of utilities to help with unit-testing [Sequelize](http://docs.sequelizejs.com) models and code that needs those models.
 
-[![NPM](https://nodei.co/npm/sequelize-test-helpers.png)](https://nodei.co/npm/sequelize-test-helpers/)
+[![NPM](https://nodei.co/npm/sequelize-jest-kit.png)](https://nodei.co/npm/sequelize-jest-kit/)
 
 ## Related Projects
 
+- [`sequelize-test-helpers`](https://github.com/davesag/sequelize-test-helpers) — A collection of utilities to help with unit-testing Sequelize models using Mocha and Chai (forked from here).
 - [`sequelize-pg-utilities`](https://github.com/davesag/sequelize-pg-utilities) — Simple utilities that help you manage your Sequelize configuration.
 
 ## How to use
@@ -22,10 +23,10 @@ This library assumes:
 
 ### Installation
 
-Add `sequelize-test-helpers` as a `devDependency`:
+Add `sequelize-jest-kit` as a `devDependency`:
 
 ```sh
-npm i -D sequelize-test-helpers
+npm i -D sequelize-jest-kit
 ```
 
 ## Examples

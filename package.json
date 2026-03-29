@@ -1,5 +1,5 @@
 {
-  "name": "sequelize-jest-helpers",
+  "name": "sequelize-jest-kit",
   "version": "2.0.0",
   "description": "A collection of utilities to help with unit-testing sequelize models using jest. Originally forked from @davesag's https://github.com/davesag/sequelize-test-helpers",
   "author": "Howard Edwards (https://github.com/howard-e)",
@@ -36,12 +36,12 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/howard-e/sequelize-jest-helpers.git"
+    "url": "https://github.com/howard-e/sequelize-jest-kit.git"
   },
   "bugs": {
-    "url": "https://github.com/howard-e/sequelize-jest-helpers/issues"
+    "url": "https://github.com/howard-e/sequelize-jest-kit/issues"
   },
-  "homepage": "https://github.com/howard-e/sequelize-jest-helpers#readme",
+  "homepage": "https://github.com/howard-e/sequelize-jest-kit#readme",
   "keywords": [
     "sequelize",
     "mock",
