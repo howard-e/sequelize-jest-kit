@@ -1,31 +1,35 @@
 ![Horizontal Logo](logo/horizontal.svg)
 
-A collection of utilities to help with unit-testing [Sequelize](http://docs.sequelizejs.com) models and code that needs those models.
+A collection of utilities to help with unit-testing [Sequelize](https://sequelize.org) models and code that needs those models, using [Jest](https://jestjs.io).
 
-[![NPM](https://nodei.co/npm/sequelize-test-helpers.png)](https://nodei.co/npm/sequelize-test-helpers/)
+[![NPM](https://nodei.co/npm/sequelize-jest-kit.png)](https://nodei.co/npm/sequelize-jest-kit/)
 
 ## Related Projects
 
+- [`sequelize-test-helpers`](https://github.com/davesag/sequelize-test-helpers) — Mocha/Chai utilities for testing Sequelize models; **`sequelize-jest-kit` started as a fork of this project** and targets Jest instead.
 - [`sequelize-pg-utilities`](https://github.com/davesag/sequelize-pg-utilities) — Simple utilities that help you manage your Sequelize configuration.
 
 ## How to use
 
 ### Prerequisites
 
-This library assumes:
+1. **[Jest](https://jestjs.io)** — this package wires mocks with [`jest-mock`](https://www.npmjs.com/package/jest-mock) (`jest.fn()`), and the check helpers expect Jest’s global `expect`.
+2. **Optional:** [`proxyquire`](https://github.com/thlorenz/proxyquire) (or another stub loader) when you need to replace `require('../models')` in unit tests.
 
-1. You are using [`chai`](http://www.chaijs.com) — Version 4 or better.
-2. You are using [`sinon`](http://sinonjs.org) — Version 5 or better.
-3. Using [`mocha`](https://mochajs.org) is also recommended, but as long as you are using `chai` and `sinon` this should work with any test runner.
+If you use Mocha-style `context` blocks, add a one-line setup file and register it with Jest’s [`setupFilesAfterEnv`](https://jestjs.io/docs/configuration#setupfilesafterenv-array):
 
-**Note** Jest is not supported unless you are also using `sinon` and `chai`, which is unlikely.
+```js
+global.context = global.describe
+```
+
+(This repo does the same in `test/unitTestHelper.js`.)
 
 ### Installation
 
-Add `sequelize-test-helpers` as a `devDependency`:
+Add `sequelize-jest-kit` as a `devDependency`:
 
 ```sh
-npm i -D sequelize-test-helpers
+npm i -D sequelize-jest-kit
 ```
 
 ## Examples
@@ -96,22 +100,21 @@ const model = (sequelize, DataTypes) => {
 module.exports = model
 ```
 
-You can use `sequelize-test-helpers` to unit-test this with `mocha` as follows:
+You can use `sequelize-jest-kit` to unit-test this with Jest as follows:
 
-#### `test/unit/models/User.spec.js`
+#### `test/unit/models/User.test.js`
 
 ```js
-const { expect } = require('chai')
-
 const {
   sequelize,
   dataTypes,
   checkModelName,
   checkUniqueIndex,
+  checkNonUniqueIndex,
   checkPropertyExists
-} = require('sequelize-test-helpers')
+} = require('sequelize-jest-kit')
 
-const UserModel = require('../../src/models/User')
+const UserModel = require('../../../src/models/User')
 
 describe('src/models/User', () => {
   const User = UserModel(sequelize, dataTypes)
@@ -119,28 +122,28 @@ describe('src/models/User', () => {
 
   checkModelName(User)('User')
 
-  context('properties', () => {
+  describe('properties', () => {
     ;['age', 'firstName', 'lastName', 'email', 'token'].forEach(checkPropertyExists(user))
   })
 
-  context('associations', () => {
+  describe('associations', () => {
     const Company = 'some dummy company'
 
-    before(() => {
+    beforeAll(() => {
       User.associate({ Company })
     })
 
     it('defined a belongsTo association with Company', () => {
-      expect(User.belongsTo).to.have.been.calledWith(Company)
+      expect(User.belongsTo).toHaveBeenCalledWith(Company)
     })
   })
 
-  context('indexes', () => {
-    context('unique', () => {
+  describe('indexes', () => {
+    describe('unique', () => {
       ;['email', 'token'].forEach(checkUniqueIndex(user))
     })
 
-    context('non unique (and also composite in this example)', () => {
+    describe('non unique (and also composite in this example)', () => {
       ;[['firstName', 'lastName']].forEach(checkNonUniqueIndex(user))
     })
   })
@@ -148,6 +151,8 @@ describe('src/models/User', () => {
 ```
 
 ### Built-in checks
+
+Each `check*` helper registers a Jest `it` that runs an assertion. For use inside your own `it` or for negative tests, use the matching `assert*` export (for example `assertModelName`).
 
 | Check                 | What it does                                          |
 | --------------------- | ----------------------------------------------------- |
@@ -165,13 +170,13 @@ describe('src/models/User', () => {
 
 ### Checking associations
 
-The various association functions are stubbed so you can simply invoke the the model's `associate` function in a `before` block then use `sinon`'s standard expectation syntax to check they were called with the correct values.
+The various association functions are Jest mocks (`jest.fn()`), so you can invoke the model’s `associate` function in a `beforeAll` / `beforeEach` block and use Jest’s matcher API to assert they were called with the correct values.
 
 #### `hasOne`
 
 ```js
 it("defined a hasOne association with Image as 'profilePic'", () => {
-  expect(User.hasOne).to.have.been.calledWith(Image, {
+  expect(User.hasOne).toHaveBeenCalledWith(Image, {
     as: 'profilePic'
   })
 })
@@ -181,7 +186,7 @@ it("defined a hasOne association with Image as 'profilePic'", () => {
 
 ```js
 it('defined a belongsTo association with Company', () => {
-  expect(User.belongsTo).to.have.been.calledWith(Company)
+  expect(User.belongsTo).toHaveBeenCalledWith(Company)
 })
 ```
 
@@ -189,7 +194,7 @@ it('defined a belongsTo association with Company', () => {
 
 ```js
 it("defined a hasMany association with User as 'employees'", () => {
-  expect(Company.hasMany).to.have.been.calledWith(User, {
+  expect(Company.hasMany).toHaveBeenCalledWith(User, {
     as: 'employees'
   })
 })
@@ -199,7 +204,7 @@ it("defined a hasMany association with User as 'employees'", () => {
 
 ```js
 it("defined a belongsToMany association with Category through CategoriesCompanies as 'categories'", () => {
-  expect(Company.belongsToMany).to.have.been.calledWith(Category, {
+  expect(Company.belongsToMany).toHaveBeenCalledWith(Category, {
     through: CategoriesCompanies,
     as: 'categories'
   })
@@ -226,19 +231,17 @@ module.exports = save
 
 You want to unit-test this without invoking a database connection (so you can't `require('src/models')` in your test).
 
-This is where `makeMockModels`, `sinon`, and [`proxyquire`](https://github.com/thlorenz/proxyquire) come in handy.
+This is where `makeMockModels` and [`proxyquire`](https://github.com/thlorenz/proxyquire) come in handy (use `jest.fn()` for any methods you need to stub or spy on).
 
 #### `test/unit/utils/save.test.js`
 
 ```js
-const { expect } = require('chai')
-const { match, stub, resetHistory } = require('sinon')
 const proxyquire = require('proxyquire')
 
-const { makeMockModels } = require('sequelize-test-helpers')
+const { makeMockModels } = require('sequelize-jest-kit')
 
 describe('src/utils/save', () => {
-  const User = { findOne: stub() }
+  const User = { findOne: jest.fn() }
   const mockModels = makeMockModels({ User })
 
   const save = proxyquire('../../../src/utils/save', {
@@ -252,50 +255,46 @@ describe('src/utils/save', () => {
     email: 'testy.mctestface.test.tes',
     token: 'some-token'
   }
-  const fakeUser = { id, ...data, update: stub() }
+  const fakeUser = { id, ...data, update: jest.fn() }
 
   let result
 
-  context('user does not exist', () => {
-    before(async () => {
-      User.findOne.resolves(undefined)
+  describe('user does not exist', () => {
+    beforeEach(async () => {
+      User.findOne.mockResolvedValue(undefined)
       result = await save({ id, ...data })
     })
 
-    after(resetHistory)
-
     it('called User.findOne', () => {
-      expect(User.findOne).to.have.been.calledWith(match({ where: { id } }))
+      expect(User.findOne).toHaveBeenCalledWith(expect.objectContaining({ where: { id } }))
     })
 
     it("didn't call user.update", () => {
-      expect(fakeUser.update).not.to.have.been.called
+      expect(fakeUser.update).not.toHaveBeenCalled()
     })
 
     it('returned null', () => {
-      expect(result).to.be.null
+      expect(result).toBeNull()
     })
   })
 
-  context('user exists', () => {
-    before(async () => {
-      fakeUser.update.resolves(fakeUser)
-      User.findOne.resolves(fakeUser)
+  describe('user exists', () => {
+    beforeEach(async () => {
+      fakeUser.update.mockResolvedValue(fakeUser)
+      User.findOne.mockResolvedValue(fakeUser)
       result = await save({ id, ...data })
     })
 
-    after(resetHistory)
-
     it('called User.findOne', () => {
-      expect(User.findOne).to.have.been.calledWith(match({ where: { id } }))
+      expect(User.findOne).toHaveBeenCalledWith(expect.objectContaining({ where: { id } }))
     })
 
     it('called user.update', () => {
-      expect(fakeUser.update).to.have.been.calledWith(match(data))
+      expect(fakeUser.update).toHaveBeenCalledWith(expect.objectContaining(data))
     })
 
     it('returned the user', () => {
-      expect(result).to.deep.equal(fakeUser)
+      expect(result).toEqual(fakeUser)
     })
   })
 })
@@ -327,34 +326,31 @@ const factory = sequelize => {
 module.exports = factory
 ```
 
-You can test this using `sequelize-test-helpers`, `sinon`, and `proxyquire`.
+You can test this using `sequelize-jest-kit` and `proxyquire`.
 
 ```js
-const { expect } = require('chai')
-const { spy } = require('sinon')
 const proxyquire = require('proxyquire')
-const { sequelize, Sequelize } = require('sequelize-test-helpers')
+const { sequelize, Sequelize } = require('sequelize-jest-kit')
 
 describe('src/models/User', () => {
   const { DataTypes } = Sequelize
 
-  const UserFactory = proxyquire('src/models/User', {
+  const UserFactory = proxyquire('../../../src/models/User', {
     sequelize: Sequelize
   })
 
   let User
 
-  before(() => {
+  beforeAll(() => {
     User = UserFactory(sequelize)
   })
 
-  // It's important you do this
-  after(() => {
-    User.init.resetHistory()
+  afterEach(() => {
+    User.init.mockClear()
   })
 
   it('called User.init with the correct parameters', () => {
-    expect(User.init).to.have.been.calledWith(
+    expect(User.init).toHaveBeenCalledWith(
       {
         firstName: DataTypes.STRING,
         lastName: DataTypes.STRING
@@ -373,7 +369,7 @@ describe('src/models/User', () => {
 Assuming your `src/models/index.js` (or your equivalent) exports all your models, it's useful to be able to generate a list of their names.
 
 ```js
-const { listModels } = require('sequelize-test-helpers')
+const { listModels } = require('sequelize-jest-kit')
 
 console.log(listModels()) // will spit out a list of your model names.
 ```
@@ -393,39 +389,35 @@ By default `makeMockModels` and `listModels` will both look for your models in f
 - `makeMockModels(yourCustomModels, customModelsFolder, customSuffix)`
 
   ```js
-  const models = makeMockModels({ User: { findOne: stub() } }, 'models', '.ts')
+  const models = makeMockModels({ User: { findOne: jest.fn() } }, 'models', '.ts')
   ```
 
 ## Development
 
 ### Branches
 
-<!-- prettier-ignore -->
 | Branch | Status | Coverage | Audit | Notes |
 | ------ | ------ | -------- | ----- | ----- |
-| `develop` | [![CircleCI](https://circleci.com/gh/davesag/sequelize-test-helpers/tree/develop.svg?style=svg)](https://circleci.com/gh/davesag/sequelize-test-helpers/tree/develop) | [![codecov](https://codecov.io/gh/davesag/sequelize-test-helpers/branch/develop/graph/badge.svg)](https://codecov.io/gh/davesag/sequelize-test-helpers) | [![Vulnerabilities](https://snyk.io/test/github/davesag/sequelize-test-helpers/develop/badge.svg)](https://snyk.io/test/github/davesag/sequelize-test-helpers/develop) | Work in progress |
-| `main` | [![CircleCI](https://circleci.com/gh/davesag/sequelize-test-helpers/tree/main.svg?style=svg)](https://circleci.com/gh/davesag/sequelize-test-helpers/tree/main) | [![codecov](https://codecov.io/gh/davesag/sequelize-test-helpers/branch/main/graph/badge.svg)](https://codecov.io/gh/davesag/sequelize-test-helpers) | [![Vulnerabilities](https://snyk.io/test/github/davesag/sequelize-test-helpers/main/badge.svg)](https://snyk.io/test/github/davesag/sequelize-test-helpers/main) | Latest stable release |
+| `develop` | [![CircleCI](https://circleci.com/gh/howard-e/sequelize-jest-kit/tree/develop.svg?style=svg)](https://circleci.com/gh/howard-e/sequelize-jest-kit/tree/develop) | [![codecov](https://codecov.io/gh/howard-e/sequelize-jest-kit/branch/develop/graph/badge.svg)](https://codecov.io/gh/howard-e/sequelize-jest-kit) | [![Vulnerabilities](https://snyk.io/test/github/howard-e/sequelize-jest-kit/develop/badge.svg)](https://snyk.io/test/github/howard-e/sequelize-jest-kit/develop) | Work in progress |
+| `main` | [![CircleCI](https://circleci.com/gh/howard-e/sequelize-jest-kit/tree/main.svg?style=svg)](https://circleci.com/gh/howard-e/sequelize-jest-kit/tree/main) | [![codecov](https://codecov.io/gh/howard-e/sequelize-jest-kit/branch/main/graph/badge.svg)](https://codecov.io/gh/howard-e/sequelize-jest-kit) | [![Vulnerabilities](https://snyk.io/test/github/howard-e/sequelize-jest-kit/main/badge.svg)](https://snyk.io/test/github/howard-e/sequelize-jest-kit/main) | Latest stable release |
 
 ### Development Prerequisites
 
-- [NodeJS](https://nodejs.org). I use [`nvm`](https://github.com/creationix/nvm) to manage Node versions — `brew install nvm`.
+- [Node.js](https://nodejs.org) that satisfies the `engines` field in `package.json`.
 
-### Initialisation
+### Setup
 
 ```sh
 npm install
 ```
 
-### Test it
+### Commands
 
-- `npm test` — runs the unit tests
-- `npm run test:unit:cov` — runs the unit tests with code coverage
+- `npm test` — run the unit tests
+- `npm run test:unit:cov` — run the unit tests with code coverage
+- `npm run lint` — run the linters
 
-### Lint it
-
-```sh
-npm run lint
-```
+Source repository: [github.com/howard-e/sequelize-jest-kit](https://github.com/howard-e/sequelize-jest-kit).
 
 ## Contributing
 

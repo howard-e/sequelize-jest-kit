@@ -1,10 +1,9 @@
-const { expect } = require('chai')
 const { serialCommaList } = require('../../../src/utils')
 
 describe('src/utils/serialCommaList', () => {
   const doTest = ([words, expected]) => {
     it(`displays '${words}' as '${expected}'`, () => {
-      expect(serialCommaList(words)).to.equal(expected)
+      expect(serialCommaList(words)).toBe(expected)
     })
   }
 

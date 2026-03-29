@@ -1,9 +1,15 @@
-const { expect } = require('chai')
+/* global it, expect */
+
+const assertPropertyExists = (instance, propName) => {
+  expect(instance).toHaveProperty(propName)
+}
 
 const checkPropertyExists = instance => propName => {
   it(`has property ${propName}`, () => {
-    expect(instance).to.have.property(propName)
+    assertPropertyExists(instance, propName)
   })
 }
+
+checkPropertyExists.assertPropertyExists = assertPropertyExists
 
 module.exports = checkPropertyExists

@@ -1,9 +1,15 @@
-const { expect } = require('chai')
+/* global it, expect */
+
+const assertHookDefined = (instance, hookName) => {
+  expect(typeof instance.hooks[hookName]).toBe('function')
+}
 
 const checkHookDefined = instance => hookName => {
   it(`defined the ${hookName} hook`, () => {
-    expect(instance.hooks[hookName]).to.be.a('function')
+    assertHookDefined(instance, hookName)
   })
 }
+
+checkHookDefined.assertHookDefined = assertHookDefined
 
 module.exports = checkHookDefined

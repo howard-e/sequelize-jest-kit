@@ -1,16 +1,19 @@
-const sinon = require('sinon')
+const { fn } = require('jest-mock')
 const hooks = require('./constants/hooks')
 const staticMethods = require('./constants/staticMethods')
 const { syncMethods, asyncMethods } = require('./constants/staticModelMethods')
 
 const sequelize = {
   define: (modelName, modelDefn, metaData = {}) => {
-    const model = function () {}
+    const model = function () {
+      /* mock Sequelize model constructor */
+    }
     model.modelName = modelName
 
     const attachHook = name => hook => {
-      if (!model.prototype.hooks)
+      if (!model.prototype.hooks) {
         model.prototype.hooks = metaData.hooks || /* istanbul ignore next  */ {}
+      }
       model.prototype.hooks[name] = hook
     }
 
@@ -19,7 +22,7 @@ const sequelize = {
     }
 
     const addStatic = key => {
-      model[key] = sinon.stub()
+      model[key] = fn()
     }
 
     hooks.forEach(hook => {
@@ -34,11 +37,11 @@ const sequelize = {
     syncMethods.forEach(addStatic)
     asyncMethods.forEach(addStatic)
 
-    model.isHierarchy = sinon.spy()
+    model.isHierarchy = fn()
 
-    model.prototype.update = sinon.stub()
-    model.prototype.reload = sinon.stub()
-    model.prototype.set = sinon.spy()
+    model.prototype.update = fn()
+    model.prototype.reload = fn()
+    model.prototype.set = fn()
     Object.keys(modelDefn).forEach(attachProp)
 
     model.prototype.indexes = metaData.indexes
@@ -49,7 +52,7 @@ const sequelize = {
 }
 
 staticMethods.forEach(method => {
-  sequelize[method] = sinon.stub()
+  sequelize[method] = fn()
 })
 
 module.exports = sequelize

@@ -1,4 +1,3 @@
-const { expect } = require('chai')
 const hooks = require('../../../src/constants/hooks')
 
 // pulled from https://github.com/sequelize/sequelize/blob/master/lib/hooks.js#L8
@@ -48,12 +47,14 @@ const hookTypes = {
 
 const allHooks = Object.keys(hookTypes).reduce((acc, elem) => {
   acc.push(elem)
-  if (hookTypes[elem].proxies) acc.concat(hookTypes[elem].proxies)
+  if (hookTypes[elem].proxies) {
+    acc.push(...hookTypes[elem].proxies)
+  }
   return acc
 }, [])
 
 describe('src/hooks', () => {
   it('lists all the hooks', () => {
-    expect(hooks).to.include.members(allHooks)
+    expect(hooks).toEqual(expect.arrayContaining(allHooks))
   })
 })
