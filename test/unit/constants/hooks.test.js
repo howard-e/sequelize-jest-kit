@@ -47,7 +47,9 @@ const hookTypes = {
 
 const allHooks = Object.keys(hookTypes).reduce((acc, elem) => {
   acc.push(elem)
-  if (hookTypes[elem].proxies) acc.concat(hookTypes[elem].proxies)
+  if (hookTypes[elem].proxies) {
+    acc.push(...hookTypes[elem].proxies)
+  }
   return acc
 }, [])
 

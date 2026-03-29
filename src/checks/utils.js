@@ -25,7 +25,9 @@ const assertSingleIndexName = (instance, indexName, unique) => {
  */
 const assertIndex = (instance, indexNameOrNames, unique = false) => {
   if (Array.isArray(indexNameOrNames)) {
-    indexNameOrNames.forEach((_, i) => assertIndexAtPosition(instance, indexNameOrNames, unique, i))
+    indexNameOrNames.forEach((_, i) => {
+      assertIndexAtPosition(instance, indexNameOrNames, unique, i)
+    })
   } else {
     assertSingleIndexName(instance, indexNameOrNames, unique)
   }

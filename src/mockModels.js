@@ -11,7 +11,9 @@ try {
   sequelizerc = require(sequelizercPath)
 } catch (err) {
   /* istanbul ignore next */
-  if (!err.code === 'MODULE_NOT_FOUND') throw err
+  if (err.code !== 'MODULE_NOT_FOUND') {
+    throw err
+  }
 }
 
 const DEFAULT_SUFFIX = '.js'

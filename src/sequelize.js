@@ -5,12 +5,15 @@ const { syncMethods, asyncMethods } = require('./constants/staticModelMethods')
 
 const sequelize = {
   define: (modelName, modelDefn, metaData = {}) => {
-    const model = function () {}
+    const model = function () {
+      /* mock Sequelize model constructor */
+    }
     model.modelName = modelName
 
     const attachHook = name => hook => {
-      if (!model.prototype.hooks)
+      if (!model.prototype.hooks) {
         model.prototype.hooks = metaData.hooks || /* istanbul ignore next  */ {}
+      }
       model.prototype.hooks[name] = hook
     }
 
