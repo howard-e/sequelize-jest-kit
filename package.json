@@ -27,7 +27,8 @@
     "test": "npm run test:unit",
     "test:unit": "NODE_ENV=test jest ./test/unit/ --setupFilesAfterEnv ./test/unitTestHelper.js",
     "test:unit:cov": "NODE_ENV=test jest ./test/unit/ --coverage --setupFilesAfterEnv ./test/unitTestHelper.js",
-    "snyk-protect": "snyk-protect"
+    "snyk-protect": "snyk-protect",
+    "knip": "knip"
   },
   "repository": {
     "type": "git",
@@ -40,11 +41,14 @@
   "keywords": ["sequelize", "mock", "mocking", "unit-testing", "jest"],
   "devDependencies": {
     "@biomejs/biome": "2.4.9",
+    "@types/node": "^25.5.0",
     "husky": "^9.0.11",
     "jest": "^30.3.0",
+    "knip": "^6.1.0",
     "lint-staged": "^15.2.2",
     "nyc": "^15.1.0",
-    "proxyquire": "^2.1.3"
+    "proxyquire": "^2.1.3",
+    "typescript": "^6.0.2"
   },
   "lint-staged": {
     "*.{js,json}": ["biome check --write --no-errors-on-unmatched"]
