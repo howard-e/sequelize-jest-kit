@@ -1,9 +1,15 @@
-const { expect } = require('chai')
+/* global it, expect */
+
+const assertModelName = (model, modelName) => {
+  expect(model.modelName).toBe(modelName)
+}
 
 const checkModelName = model => modelName => {
   it(`is named '${modelName}'`, () => {
-    expect(model.modelName).to.equal(modelName)
+    assertModelName(model, modelName)
   })
 }
+
+checkModelName.assertModelName = assertModelName
 
 module.exports = checkModelName
