@@ -425,4 +425,4 @@ Please see the [contributing notes](CONTRIBUTING.md).
 
 ## Thanks
 
-- Thanks to [`reallinfo`](https://github.com/reallinfo) for the logo.
+- Thanks to [`reallinfo`](https://github.com/reallinfo) for the ([original](https://github.com/davesag/sequelize-test-helpers/blob/develop/logo/horizontal.svg)) logo. [Updated](https://github.com/howard-e/sequelize-jest-kit/blob/develop/logo/horizontal.svg) by myself, @howard-e.
