@@ -1,6 +1,6 @@
 {
   "name": "sequelize-jest-kit",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "A collection of utilities to help with unit-testing sequelize models using jest. Originally forked from @davesag's https://github.com/davesag/sequelize-test-helpers",
   "author": "Howard Edwards (https://github.com/howard-e)",
   "contributors": [
