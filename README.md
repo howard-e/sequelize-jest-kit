@@ -1,6 +1,6 @@
 ![Horizontal Logo](logo/horizontal.svg)
 
-A collection of utilities to help with unit-testing [Sequelize](https://sequelize.org) models and code that needs those models, using [Jest](https://jestjs.io). _This is inspired by my work originally proposed in https://github.com/davesag/sequelize-test-helpers/pull/302._
+A collection of utilities to help with unit-testing [Sequelize](https://sequelize.org) models and code that needs those models, using [Jest](https://jestjs.io). _This is inspired by my work originally proposed in [sequelize-test-helpers#302](https://github.com/davesag/sequelize-test-helpers/pull/302)._
 
 [![NPM](https://nodei.co/npm/sequelize-jest-kit.png)](https://nodei.co/npm/sequelize-jest-kit/)
 
