@@ -41,7 +41,7 @@
   "homepage": "https://github.com/howard-e/sequelize-jest-kit#readme",
   "keywords": ["sequelize", "mock", "mocking", "unit-testing", "jest"],
   "devDependencies": {
-    "@biomejs/biome": "2.4.9",
+    "@biomejs/biome": "2.4.12",
     "@types/node": "^25.5.0",
     "husky": "^9.1.7",
     "jest": "^30.3.0",
