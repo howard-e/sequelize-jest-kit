@@ -1,6 +1,6 @@
 name: Release
 
-run-name: ${{ github.event_name == 'repository_dispatch' && format('Release {0}', github.event.client_payload.version) || github.event_name == 'workflow_dispatch' && 'Queue release' || 'Release from main' }}
+run-name: ${{ github.event_name == 'workflow_dispatch' && format('Queue {0} release', inputs.bump) || 'Publish from main' }}
 
 on:
   push:
@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
     inputs:
       bump:
-        description: Semantic version bump on develop, then publish from main
+        description: Semantic version bump for a release PR from develop to main
         required: true
         type: choice
         default: patch
@@ -16,22 +16,23 @@ on:
           - patch
           - minor
           - major
-  repository_dispatch:
-    types: [publish-release]
 
 concurrency:
   group: release
   cancel-in-progress: false
 
 permissions:
-  actions: write
-  contents: write
+  contents: read
 
 jobs:
   queue:
-    name: Queue release
+    name: Create release PR
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
+    permissions:
+      actions: write
+      contents: write
+      pull-requests: write
     steps:
       - name: Require develop for version bumps
         if: github.ref != 'refs/heads/develop'
@@ -39,50 +40,74 @@ jobs:
           echo "Run this workflow from the develop branch. Selected ref: ${{ github.ref }}"
           exit 1
 
-      - name: Checkout repository
-        uses: actions/checkout@v7
+      - name: Checkout develop
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
+          fetch-depth: 0
           ref: develop
 
       - name: Set up Node.js
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: lts/*
 
-      - name: Dispatch versioned release
+      - name: Create version bump
+        id: version
+        env:
+          BUMP: ${{ inputs.bump }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          npm version "$BUMP" --no-git-tag-version --ignore-scripts
+          VERSION=$(node -p "require('./package.json').version")
+          BRANCH="release/v${VERSION}"
+          echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          if git ls-remote --exit-code --heads origin "$BRANCH" >/dev/null 2>&1; then
+            echo "Release branch ${BRANCH} already exists; reusing it."
+            exit 0
+          fi
+          git checkout -b "$BRANCH"
+          git add package.json package-lock.json
+          git commit -m "chore: bump version to ${VERSION}"
+          git push origin "$BRANCH"
+
+      - name: Open release PR
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BRANCH: ${{ steps.version.outputs.branch }}
+          VERSION: ${{ steps.version.outputs.version }}
         run: |
-          npm version "${{ inputs.bump }}" --no-git-tag-version
-          VERSION=$(node -p "require('./package.json').version")
-          jq -n \
-            --arg version "$VERSION" \
-            --arg bump "${{ inputs.bump }}" \
-            '{event_type:"publish-release",client_payload:{version:$version,bump:$bump}}' \
-          | gh api --method POST "/repos/${{ github.repository }}/dispatches" --input -
+          PR_COUNT=$(gh pr list --head "$BRANCH" --state open --json number --jq 'length')
+          if [ "$PR_COUNT" -eq 0 ]; then
+            gh pr create \
+              --base main \
+              --head "$BRANCH" \
+              --title "chore: release v${VERSION}" \
+              --body "Version bump for v${VERSION}. Merge after all required checks pass."
+          fi
+          gh workflow run tests.yml --ref "$BRANCH"
           {
-            echo "## Queued Release ${VERSION}"
+            echo "## Release v${VERSION} queued"
             echo ""
-            echo "Started a versioned run titled **Release ${VERSION}** (\`${{ inputs.bump }}\` bump)."
+            echo "A protected pull request from \`${BRANCH}\` to \`main\` is ready for review."
           } >> "$GITHUB_STEP_SUMMARY"
 
-  prepare:
-    name: Prepare release
-    if: github.event_name == 'push' || github.event_name == 'repository_dispatch'
+  verify:
+    name: Verify release commit
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     outputs:
-      version: ${{ steps.pkg.outputs.version }}
-      sha: ${{ steps.push_main.outputs.sha || steps.pkg.outputs.sha }}
       published: ${{ steps.npm.outputs.published }}
+      version: ${{ steps.pkg.outputs.version }}
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v7
+      - name: Checkout exact release commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          fetch-depth: 0
-          ref: ${{ github.event_name == 'repository_dispatch' && (github.run_attempt == '1' && 'develop' || 'main') || github.sha }}
+          ref: ${{ github.sha }}
 
       - name: Set up Node.js
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: lts/*
           cache: npm
@@ -91,156 +116,140 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Run linter
+        run: npm run lint
+
       - name: Run tests
         run: npm test
 
-      - name: Bump version
-        if: github.event_name == 'repository_dispatch' && github.run_attempt == '1'
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          npm version "${{ github.event.client_payload.bump }}" --no-git-tag-version
-          VERSION=$(node -p "require('./package.json').version")
-          git add package.json package-lock.json
-          git commit -m "chore: bump version to ${VERSION}"
+      - name: Inspect package
+        run: npm pack --dry-run --ignore-scripts
 
       - name: Resolve package version
         id: pkg
         run: |
           VERSION=$(node -p "require('./package.json').version")
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
-
-      - name: Push release commit to main
-        id: push_main
-        if: github.event_name == 'repository_dispatch' && github.run_attempt == '1'
-        run: |
-          git fetch origin main
-          git merge origin/main --no-edit -m "chore: merge main into release v${{ steps.pkg.outputs.version }}"
-          git push origin HEAD:main
-          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
       - name: Check if version is already on npm
         id: npm
+        env:
+          VERSION: ${{ steps.pkg.outputs.version }}
         run: |
-          VERSION="${{ steps.pkg.outputs.version }}"
-          if npm view "sequelize-jest-kit@${VERSION}" version 2>/dev/null | grep -q .; then
+          if npm view "sequelize-jest-kit@${VERSION}" version >/dev/null 2>&1; then
             echo "published=true" >> "$GITHUB_OUTPUT"
             echo "Version ${VERSION} is already on npm; skipping publish."
           else
             echo "published=false" >> "$GITHUB_OUTPUT"
           fi
 
-  publish-and-sync:
-    name: Publish & Sync v${{ needs.prepare.outputs.version }}
-    if: github.event_name == 'push' || github.event_name == 'repository_dispatch'
-    needs: prepare
+  publish:
+    name: Publish v${{ needs.verify.outputs.version }}
+    if: needs.verify.outputs.published == 'false'
+    needs: verify
     runs-on: ubuntu-latest
+    environment:
+      name: npm
+    permissions:
+      contents: read
+      id-token: write
     steps:
-      - name: Checkout release commit
-        uses: actions/checkout@v7
+      - name: Checkout verified release commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
-          ref: ${{ needs.prepare.outputs.sha }}
+          ref: ${{ github.sha }}
 
       - name: Set up Node.js
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: lts/*
           registry-url: https://registry.npmjs.org
 
-      - name: Publish to npm
-        id: npm_publish
-        if: needs.prepare.outputs.published == 'false'
+      - name: Publish verified commit to npm
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: npm publish --ignore-scripts
-
-      - name: Check GitHub release
-        id: gh_release
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ needs.verify.outputs.version }}
         run: |
-          VERSION="${{ needs.prepare.outputs.version }}"
-          if gh release view "v${VERSION}" >/dev/null 2>&1; then
-            echo "exists=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "exists=false" >> "$GITHUB_OUTPUT"
+          if npm view "sequelize-jest-kit@${VERSION}" version >/dev/null 2>&1; then
+            echo "Version ${VERSION} reached npm during an earlier attempt; skipping duplicate publish."
+            exit 0
           fi
+          npm publish --ignore-scripts --provenance
+
+  finalize:
+    name: Finalize v${{ needs.verify.outputs.version }}
+    if: always() && needs.verify.result == 'success' && (needs.verify.outputs.published == 'true' || needs.publish.result == 'success')
+    needs: [verify, publish]
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Checkout verified release commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+          ref: ${{ github.sha }}
 
       - name: Create GitHub release
-        id: create_release
-        if: steps.gh_release.outputs.exists == 'false' && (needs.prepare.outputs.published == 'false' || github.event_name == 'repository_dispatch')
-        uses: softprops/action-gh-release@v3
-        with:
-          tag_name: v${{ needs.prepare.outputs.version }}
-          name: v${{ needs.prepare.outputs.version }}
-          target_commitish: ${{ needs.prepare.outputs.sha }}
-          generate_release_notes: true
-
-      - name: Merge main into develop and push
-        id: sync_develop
-        if: needs.prepare.outputs.published == 'false' || github.event_name == 'repository_dispatch'
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SHA: ${{ github.sha }}
+          VERSION: ${{ needs.verify.outputs.version }}
+        run: |
+          if ! gh release view "v${VERSION}" >/dev/null 2>&1; then
+            gh release create "v${VERSION}" \
+              --target "$SHA" \
+              --title "v${VERSION}" \
+              --generate-notes
+          fi
+
+      - name: Open main-to-develop sync PR
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ needs.verify.outputs.version }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git fetch origin main develop
-          git checkout -B develop origin/develop
-          git merge origin/main --no-edit -m "chore: sync develop with main after v${{ needs.prepare.outputs.version }}"
-          git push origin develop
+          if git merge-base --is-ancestor origin/main origin/develop; then
+            echo "develop already contains main."
+            exit 0
+          fi
+          BRANCH="sync/main-after-v${VERSION}"
+          if git ls-remote --exit-code --heads origin "$BRANCH" >/dev/null 2>&1; then
+            git fetch origin "$BRANCH"
+            git checkout -B "$BRANCH" "origin/$BRANCH"
+          else
+            git checkout -B "$BRANCH" origin/develop
+          fi
+          git merge origin/main --no-edit -m "chore: sync develop with main after v${VERSION}"
+          git push origin "$BRANCH"
+          PR_COUNT=$(gh pr list --head "$BRANCH" --state open --json number --jq 'length')
+          if [ "$PR_COUNT" -eq 0 ]; then
+            gh pr create \
+              --base develop \
+              --head "$BRANCH" \
+              --title "chore: sync main after v${VERSION}" \
+              --body "Sync the verified v${VERSION} release commit back into develop."
+          fi
+          gh workflow run tests.yml --ref "$BRANCH"
+          gh workflow run codeql-analysis.yml --ref "$BRANCH"
 
-      - name: Write run summary
-        if: always()
+      - name: Write release summary
         env:
-          VERSION: ${{ needs.prepare.outputs.version }}
-          SHA: ${{ needs.prepare.outputs.sha }}
-          BUMP: ${{ github.event.client_payload.bump }}
-          ALREADY_ON_NPM: ${{ needs.prepare.outputs.published }}
-          NPM_OUTCOME: ${{ steps.npm_publish.outcome }}
-          RELEASE_EXISTED: ${{ steps.gh_release.outputs.exists }}
-          RELEASE_OUTCOME: ${{ steps.create_release.outcome }}
-          SYNC_OUTCOME: ${{ steps.sync_develop.outcome }}
           REPO: ${{ github.repository }}
           SERVER_URL: ${{ github.server_url }}
+          SHA: ${{ github.sha }}
+          VERSION: ${{ needs.verify.outputs.version }}
         run: |
-          status_label() {
-            case "$1" in
-              success) echo "Done" ;;
-              failure) echo "Failed" ;;
-              skipped) echo "Skipped" ;;
-              cancelled) echo "Cancelled" ;;
-              *) echo "${1:-Not run}" ;;
-            esac
-          }
-
-          if [ "$ALREADY_ON_NPM" = "true" ]; then
-            NPM_STATUS="Already on npm"
-          else
-            NPM_STATUS="$(status_label "$NPM_OUTCOME")"
-          fi
-
-          if [ "$RELEASE_EXISTED" = "true" ]; then
-            RELEASE_STATUS="Already existed"
-          else
-            RELEASE_STATUS="$(status_label "$RELEASE_OUTCOME")"
-          fi
-
-          SYNC_STATUS="$(status_label "$SYNC_OUTCOME")"
-          SHORT_SHA="$(echo "$SHA" | cut -c1-7)"
+          SHORT_SHA=$(echo "$SHA" | cut -c1-7)
           {
-            echo "## Release ${VERSION}"
+            echo "## Released v${VERSION}"
             echo ""
-            if [ -n "$BUMP" ]; then
-              echo "Bump: \`${BUMP}\`"
-              echo ""
-            fi
-            echo "| Step | Result |"
-            echo "| --- | --- |"
-            echo "| Version | \`${VERSION}\` |"
-            echo "| Commit | [\`${SHORT_SHA}\`](${SERVER_URL}/${REPO}/commit/${SHA}) |"
-            echo "| npm | ${NPM_STATUS} — [sequelize-jest-kit@${VERSION}](https://www.npmjs.com/package/sequelize-jest-kit/v/${VERSION}) |"
-            echo "| GitHub release | ${RELEASE_STATUS} — [v${VERSION}](${SERVER_URL}/${REPO}/releases/tag/v${VERSION}) |"
-            echo "| Sync \`develop\` | ${SYNC_STATUS} |"
+            echo "- Commit: [\`${SHORT_SHA}\`](${SERVER_URL}/${REPO}/commit/${SHA})"
+            echo "- npm: [sequelize-jest-kit@${VERSION}](https://www.npmjs.com/package/sequelize-jest-kit/v/${VERSION})"
+            echo "- GitHub: [v${VERSION}](${SERVER_URL}/${REPO}/releases/tag/v${VERSION})"
           } >> "$GITHUB_STEP_SUMMARY"
