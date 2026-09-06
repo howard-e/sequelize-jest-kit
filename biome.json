@@ -124,7 +124,7 @@
   },
   "overrides": [
     {
-      "includes": ["test/**/*.js", "src/checks/**/*.js"],
+      "includes": ["test/**/*.js", "example/test/**/*.js", "src/checks/**/*.js"],
       "javascript": {
         "globals": [
           "afterAll",

@@ -14,7 +14,6 @@ A collection of utilities to help with unit-testing [Sequelize](https://sequeliz
 ### Prerequisites
 
 1. **[Jest](https://jestjs.io)** — this package wires mocks with [`jest-mock`](https://www.npmjs.com/package/jest-mock) (`jest.fn()`), and the check helpers expect Jest’s global `expect`.
-2. **Optional:** [`proxyquire`](https://github.com/thlorenz/proxyquire) (or another stub loader) when you need to replace `require('../models')` in unit tests.
 
 If you use Mocha-style `context` blocks, add a one-line setup file and register it with Jest’s [`setupFilesAfterEnv`](https://jestjs.io/docs/configuration#setupfilesafterenv-array):
 
@@ -33,6 +32,8 @@ npm i -D sequelize-jest-kit
 ```
 
 ## Examples
+
+A runnable sample app (define-style models, `Model.init`, associations, indexes, hooks, and `makeMockModels`) lives in [`example/`](example/) and is covered by `npm run test:example`.
 
 ### Unit testing models created with `sequelize.define`
 
@@ -231,23 +232,20 @@ module.exports = save
 
 You want to unit-test this without invoking a database connection (so you can't `require('src/models')` in your test).
 
-This is where `makeMockModels` and [`proxyquire`](https://github.com/thlorenz/proxyquire) come in handy (use `jest.fn()` for any methods you need to stub or spy on).
+This is where `makeMockModels` and `jest.mock` come in handy (use `jest.fn()` for any methods you need to stub or spy on).
 
 #### `test/unit/utils/save.test.js`
 
 ```js
-const proxyquire = require('proxyquire')
+jest.mock('../../../src/models', () => {
+  const { makeMockModels } = require('sequelize-jest-kit')
+  return makeMockModels({ User: { findOne: jest.fn() } })
+})
 
-const { makeMockModels } = require('sequelize-jest-kit')
+const { User } = require('../../../src/models')
+const save = require('../../../src/utils/save')
 
 describe('src/utils/save', () => {
-  const User = { findOne: jest.fn() }
-  const mockModels = makeMockModels({ User })
-
-  const save = proxyquire('../../../src/utils/save', {
-    '../models': mockModels
-  })
-
   const id = 1
   const data = {
     firstName: 'Testy',
@@ -326,18 +324,19 @@ const factory = sequelize => {
 module.exports = factory
 ```
 
-You can test this using `sequelize-jest-kit` and `proxyquire`.
+You can test this using `sequelize-jest-kit` and `jest.mock`.
 
 ```js
-const proxyquire = require('proxyquire')
+jest.mock('sequelize', () => {
+  const { Sequelize } = require('sequelize-jest-kit')
+  return Sequelize
+})
+
 const { sequelize, Sequelize } = require('sequelize-jest-kit')
+const UserFactory = require('../../../src/models/User')
 
 describe('src/models/User', () => {
   const { DataTypes } = Sequelize
-
-  const UserFactory = proxyquire('../../../src/models/User', {
-    sequelize: Sequelize
-  })
 
   let User
 
@@ -413,7 +412,9 @@ npm install
 
 ### Commands
 
-- `npm test` — run the unit tests
+- `npm test` — run the unit tests and the example application tests
+- `npm run test:unit` — run the unit tests
+- `npm run test:example` — run the example application tests in `example/`
 - `npm run test:unit:cov` — run the unit tests with code coverage
 - `npm run lint` — run the linters
 
