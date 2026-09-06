@@ -1,16 +1,13 @@
-/* global it, expect */
+/* global it */
 
 const { serialCommaList } = require('../utils')
+const { assertIndex } = require('./utils')
 
 /**
  * @deprecated both `checkUniqueIndex` and `checkNonUniqueIndex` will now check for either simple or composite indexes.
  */
 const assertUniqueCompoundIndex = (instance, indexes) => {
-  expect(
-    instance.indexes.find(
-      index => index.unique === true && index.fields.join('') === indexes.join('')
-    )
-  ).toBeDefined()
+  assertIndex(instance, indexes, true)
 }
 
 const checkUniqueCompoundIndex = instance => indexes => {

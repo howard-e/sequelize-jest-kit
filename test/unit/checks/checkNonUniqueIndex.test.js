@@ -10,8 +10,38 @@ describe('src/checkNonUniqueIndex', () => {
   })
 
   describe('unhappy path', () => {
-    it('fails the test', () => {
+    it('fails when the index does not exist', () => {
       expect(() => assertIndex(instance, 'no name', false)).toThrow()
+    })
+
+    it('fails when fields are split across different indexes', () => {
+      const splitIndexes = {
+        indexes: [{ fields: ['coffee', 'name'] }, { fields: ['uuid', 'lunch'] }]
+      }
+
+      expect(() => assertIndex(splitIndexes, ['coffee', 'lunch'], false)).toThrow()
+    })
+
+    it('fails when only a composite index starts with the requested field', () => {
+      const compositeOnly = {
+        indexes: [{ fields: ['name', 'lunch'] }]
+      }
+
+      expect(() => assertIndex(compositeOnly, 'name', false)).toThrow()
+    })
+
+    it('fails when the matching index is unique', () => {
+      expect(() => assertIndex(instance, ['name', 'lunch'], false)).toThrow()
+    })
+  })
+
+  describe('Sequelize field objects', () => {
+    it('matches fields by name', () => {
+      const objectFields = {
+        indexes: [{ fields: [{ name: 'coffee' }, { name: 'lunch', order: 'DESC' }] }]
+      }
+
+      expect(() => assertIndex(objectFields, ['coffee', 'lunch'], false)).not.toThrow()
     })
   })
 })
