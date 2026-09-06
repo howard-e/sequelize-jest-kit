@@ -117,7 +117,7 @@ jobs:
         if: needs.prepare.outputs.published == 'false'
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: npm publish
+        run: npm publish --ignore-scripts
 
       - name: Check GitHub release
         id: gh_release
