@@ -1,6 +1,6 @@
 # Security Policy
 
-> Updated 2026-09-06 by Howard Edwards: aligned supported versions and private disclosure guidance with the current 2.x release.
+> Updated 2026-09-06 by @howard-e: aligned supported versions and private disclosure guidance with the current 2.x release.
 
 ## Supported Versions
 
