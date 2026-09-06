@@ -14,7 +14,7 @@
   "license": "MIT",
   "main": "src/index.js",
   "engines": {
-    "node": ">= 8.10.0"
+    "node": ">=20"
   },
   "files": ["CONTRIBUTING.md", "src", "logo/horizontal.svg"],
   "directories": {
