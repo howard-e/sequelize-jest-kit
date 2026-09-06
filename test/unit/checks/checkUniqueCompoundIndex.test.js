@@ -15,8 +15,16 @@ describe('src/checkUniqueCompoundIndex', () => {
   })
 
   describe('unhappy path', () => {
-    it('fails the test', () => {
-      expect(() => assertUniqueCompoundIndex(instance, 'no such index')).toThrow()
+    it('fails when the index does not exist', () => {
+      expect(() => assertUniqueCompoundIndex(instance, ['no such index'])).toThrow()
+    })
+
+    it('does not match ambiguous concatenated field names', () => {
+      const ambiguousIndex = {
+        indexes: [{ unique: true, fields: ['ab', 'c'] }]
+      }
+
+      expect(() => assertUniqueCompoundIndex(ambiguousIndex, ['a', 'bc'])).toThrow()
     })
   })
 })
