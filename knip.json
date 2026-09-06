@@ -1,5 +1,5 @@
 {
   "$schema": "https://unpkg.com/knip@6/schema.json",
-  "entry": ["src/mockSequelize.js", "test/types/public-api.ts"],
+  "entry": ["src/mockSequelize.js"],
   "tags": ["-lintignore"]
 }
