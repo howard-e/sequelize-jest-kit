@@ -9,11 +9,9 @@ const sequelize = {
       /* mock Sequelize model constructor */
     }
     model.modelName = modelName
+    model.prototype.hooks = { ...(metaData.hooks || {}) }
 
     const attachHook = name => hook => {
-      if (!model.prototype.hooks) {
-        model.prototype.hooks = metaData.hooks || /* istanbul ignore next  */ {}
-      }
       model.prototype.hooks[name] = hook
     }
 

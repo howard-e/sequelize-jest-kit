@@ -51,6 +51,9 @@ jobs:
         with:
           node-version: lts/*
 
+      - name: Install dependencies
+        run: npm ci
+
       - name: Create version bump
         id: version
         env:
@@ -59,6 +62,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           npm version "$BUMP" --no-git-tag-version --ignore-scripts
+          npm exec -- biome format --write package.json
           VERSION=$(node -p "require('./package.json').version")
           BRANCH="release/v${VERSION}"
           echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"

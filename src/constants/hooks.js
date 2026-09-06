@@ -36,10 +36,16 @@ const hooks = [
   'afterAssociate',
   'beforeConnect',
   'afterConnect',
+  'beforeDisconnect',
+  'afterDisconnect',
+  'beforePoolAcquire',
+  'afterPoolAcquire',
   'beforeSync',
   'afterSync',
   'beforeBulkSync',
-  'afterBulkSync'
+  'afterBulkSync',
+  'beforeQuery',
+  'afterQuery'
 ]
 
 module.exports = hooks
