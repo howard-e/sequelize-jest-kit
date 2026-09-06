@@ -7,6 +7,10 @@ describe('src/checkNonUniqueIndex', () => {
 
   describe('happy path', () => {
     ;['name', ['coffee', 'lunch']].forEach(checkNonUniqueIndex(instance))
+
+    it('defaults to matching non-unique indexes', () => {
+      expect(() => assertIndex(instance, 'name')).not.toThrow()
+    })
   })
 
   describe('unhappy path', () => {
@@ -32,6 +36,18 @@ describe('src/checkNonUniqueIndex', () => {
 
     it('fails when the matching index is unique', () => {
       expect(() => assertIndex(instance, ['name', 'lunch'], false)).toThrow()
+    })
+
+    it('fails with an assertion when indexes are not defined', () => {
+      expect(() => assertIndex({}, 'name', false)).toThrow()
+    })
+
+    it('fails when index fields are not an array', () => {
+      const invalidFields = {
+        indexes: [{ fields: 'name' }]
+      }
+
+      expect(() => assertIndex(invalidFields, 'name', false)).toThrow()
     })
   })
 
