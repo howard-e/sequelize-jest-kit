@@ -1,6 +1,6 @@
 {
   "name": "sequelize-jest-kit",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "description": "A collection of utilities to help with unit-testing sequelize models using jest. Originally forked from @davesag's https://github.com/davesag/sequelize-test-helpers",
   "author": "Howard Edwards (https://github.com/howard-e)",
   "contributors": [
@@ -16,7 +16,11 @@
   "engines": {
     "node": ">=20"
   },
-  "files": ["CONTRIBUTING.md", "src", "logo/horizontal.svg"],
+  "files": [
+    "CONTRIBUTING.md",
+    "src",
+    "logo/horizontal.svg"
+  ],
   "directories": {
     "lib": "src",
     "test": "test"
@@ -41,7 +45,13 @@
     "url": "https://github.com/howard-e/sequelize-jest-kit/issues"
   },
   "homepage": "https://github.com/howard-e/sequelize-jest-kit#readme",
-  "keywords": ["sequelize", "mock", "mocking", "unit-testing", "jest"],
+  "keywords": [
+    "sequelize",
+    "mock",
+    "mocking",
+    "unit-testing",
+    "jest"
+  ],
   "devDependencies": {
     "@biomejs/biome": "2.5.12",
     "@types/node": "^26.4.1",
@@ -53,7 +63,9 @@
     "typescript": "^7.0.2"
   },
   "lint-staged": {
-    "*.{js,json}": ["biome check --write --no-errors-on-unmatched"]
+    "*.{js,json}": [
+      "biome check --write --no-errors-on-unmatched"
+    ]
   },
   "overrides": {
     "sequelize": {
