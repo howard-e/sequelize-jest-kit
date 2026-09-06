@@ -3,6 +3,17 @@ name: Release
 on:
   push:
     branches: [main]
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: Semantic version bump to apply on main before publishing
+        required: true
+        type: choice
+        default: patch
+        options:
+          - patch
+          - minor
+          - major
 
 concurrency:
   group: release-${{ github.ref }}
@@ -15,10 +26,17 @@ jobs:
   publish-and-sync:
     runs-on: ubuntu-latest
     steps:
+      - name: Require main for version bumps
+        if: github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main'
+        run: |
+          echo "Run this workflow from the main branch. Selected ref: ${{ github.ref }}"
+          exit 1
+
       - name: Checkout repository
         uses: actions/checkout@v7
         with:
           fetch-depth: 0
+          ref: ${{ github.event_name == 'workflow_dispatch' && 'main' || github.sha }}
 
       - name: Set up Node.js
         uses: actions/setup-node@v7
@@ -33,11 +51,25 @@ jobs:
       - name: Run tests
         run: npm test
 
+      - name: Bump version
+        if: github.event_name == 'workflow_dispatch' && github.run_attempt == '1'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          npm version "${{ inputs.bump }}" --no-git-tag-version
+          VERSION=$(node -p "require('./package.json').version")
+          git add package.json package-lock.json
+          git commit -m "chore: bump version to ${VERSION}"
+
       - name: Resolve package version
         id: pkg
         run: |
           VERSION=$(node -p "require('./package.json').version")
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Push version bump to main
+        if: github.event_name == 'workflow_dispatch' && github.run_attempt == '1'
+        run: git push origin HEAD:main
 
       - name: Check if version is already on npm
         id: npm
@@ -45,7 +77,7 @@ jobs:
           VERSION="${{ steps.pkg.outputs.version }}"
           if npm view "sequelize-jest-kit@${VERSION}" version 2>/dev/null | grep -q .; then
             echo "published=true" >> "$GITHUB_OUTPUT"
-            echo "Version ${VERSION} is already on npm; skipping publish and GitHub release."
+            echo "Version ${VERSION} is already on npm; skipping publish."
           else
             echo "published=false" >> "$GITHUB_OUTPUT"
           fi
@@ -56,8 +88,20 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: npm publish
 
+      - name: Check GitHub release
+        id: gh_release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${{ steps.pkg.outputs.version }}"
+          if gh release view "v${VERSION}" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Create GitHub release
-        if: steps.npm.outputs.published == 'false'
+        if: steps.gh_release.outputs.exists == 'false' && (steps.npm.outputs.published == 'false' || github.event_name == 'workflow_dispatch')
         uses: softprops/action-gh-release@v3
         with:
           tag_name: v${{ steps.pkg.outputs.version }}
@@ -65,13 +109,13 @@ jobs:
           generate_release_notes: true
 
       - name: Merge main into develop and push
-        if: steps.npm.outputs.published == 'false'
+        if: steps.npm.outputs.published == 'false' || github.event_name == 'workflow_dispatch'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git fetch origin develop
+          git fetch origin main develop
           git checkout -B develop origin/develop
           git merge origin/main --no-edit -m "chore: sync develop with main after v${{ steps.pkg.outputs.version }}"
           git push origin develop
