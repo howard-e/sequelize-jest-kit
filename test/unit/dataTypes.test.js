@@ -18,7 +18,6 @@ const basicTypes = [
   'INET',
   'JSON',
   'JSONB',
-  'JSONTYPE',
   'MACADDR',
   'MEDIUMINT',
   'NOW',

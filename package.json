@@ -25,6 +25,7 @@
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
     "test": "NODE_ENV=test jest",
+    "test:contract": "NODE_ENV=test jest ./test/contract/",
     "test:unit": "NODE_ENV=test jest ./test/unit/",
     "test:example": "NODE_ENV=test jest ./example/test/",
     "test:unit:cov": "NODE_ENV=test jest ./test/unit/ --coverage",
@@ -48,12 +49,18 @@
     "jest": "^30.3.0",
     "knip": "^6.1.0",
     "lint-staged": "^17.4.1",
+    "sequelize": "6.37.8",
     "typescript": "^7.0.2"
   },
   "lint-staged": {
     "*.{js,json}": ["biome check --write --no-errors-on-unmatched"]
   },
   "snyk": true,
+  "overrides": {
+    "sequelize": {
+      "uuid": "11.1.1"
+    }
+  },
   "dependencies": {
     "jest-mock": "^30.3.0"
   }
