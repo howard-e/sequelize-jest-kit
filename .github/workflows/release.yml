@@ -1,6 +1,6 @@
 name: Release
 
-run-name: ${{ github.event_name == 'workflow_dispatch' && format('Release {0} from develop', inputs.bump) || 'Release from main' }}
+run-name: ${{ github.event_name == 'repository_dispatch' && format('Release {0}', github.event.client_payload.version) || github.event_name == 'workflow_dispatch' && 'Queue release' || 'Release from main' }}
 
 on:
   push:
@@ -16,25 +16,25 @@ on:
           - patch
           - minor
           - major
+  repository_dispatch:
+    types: [publish-release]
 
 concurrency:
   group: release
   cancel-in-progress: false
 
 permissions:
+  actions: write
   contents: write
 
 jobs:
-  prepare:
-    name: Prepare release
+  queue:
+    name: Queue release
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
-    outputs:
-      version: ${{ steps.pkg.outputs.version }}
-      sha: ${{ steps.push_main.outputs.sha || steps.pkg.outputs.sha }}
-      published: ${{ steps.npm.outputs.published }}
     steps:
       - name: Require develop for version bumps
-        if: github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/develop'
+        if: github.ref != 'refs/heads/develop'
         run: |
           echo "Run this workflow from the develop branch. Selected ref: ${{ github.ref }}"
           exit 1
@@ -42,8 +42,44 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v7
         with:
+          ref: develop
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: lts/*
+
+      - name: Dispatch versioned release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          npm version "${{ inputs.bump }}" --no-git-tag-version
+          VERSION=$(node -p "require('./package.json').version")
+          jq -n \
+            --arg version "$VERSION" \
+            --arg bump "${{ inputs.bump }}" \
+            '{event_type:"publish-release",client_payload:{version:$version,bump:$bump}}' \
+          | gh api --method POST "/repos/${{ github.repository }}/dispatches" --input -
+          {
+            echo "## Queued Release ${VERSION}"
+            echo ""
+            echo "Started a versioned run titled **Release ${VERSION}** (\`${{ inputs.bump }}\` bump)."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  prepare:
+    name: Prepare release
+    if: github.event_name == 'push' || github.event_name == 'repository_dispatch'
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.pkg.outputs.version }}
+      sha: ${{ steps.push_main.outputs.sha || steps.pkg.outputs.sha }}
+      published: ${{ steps.npm.outputs.published }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
           fetch-depth: 0
-          ref: ${{ github.event_name == 'workflow_dispatch' && (github.run_attempt == '1' && 'develop' || 'main') || github.sha }}
+          ref: ${{ github.event_name == 'repository_dispatch' && (github.run_attempt == '1' && 'develop' || 'main') || github.sha }}
 
       - name: Set up Node.js
         uses: actions/setup-node@v7
@@ -59,11 +95,11 @@ jobs:
         run: npm test
 
       - name: Bump version
-        if: github.event_name == 'workflow_dispatch' && github.run_attempt == '1'
+        if: github.event_name == 'repository_dispatch' && github.run_attempt == '1'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          npm version "${{ inputs.bump }}" --no-git-tag-version
+          npm version "${{ github.event.client_payload.bump }}" --no-git-tag-version
           VERSION=$(node -p "require('./package.json').version")
           git add package.json package-lock.json
           git commit -m "chore: bump version to ${VERSION}"
@@ -74,11 +110,10 @@ jobs:
           VERSION=$(node -p "require('./package.json').version")
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
-          echo "## Release v${VERSION}" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Push release commit to main
         id: push_main
-        if: github.event_name == 'workflow_dispatch' && github.run_attempt == '1'
+        if: github.event_name == 'repository_dispatch' && github.run_attempt == '1'
         run: |
           git fetch origin main
           git merge origin/main --no-edit -m "chore: merge main into release v${{ steps.pkg.outputs.version }}"
@@ -98,6 +133,7 @@ jobs:
 
   publish-and-sync:
     name: Publish & Sync v${{ needs.prepare.outputs.version }}
+    if: github.event_name == 'push' || github.event_name == 'repository_dispatch'
     needs: prepare
     runs-on: ubuntu-latest
     steps:
@@ -114,6 +150,7 @@ jobs:
           registry-url: https://registry.npmjs.org
 
       - name: Publish to npm
+        id: npm_publish
         if: needs.prepare.outputs.published == 'false'
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
@@ -132,7 +169,8 @@ jobs:
           fi
 
       - name: Create GitHub release
-        if: steps.gh_release.outputs.exists == 'false' && (needs.prepare.outputs.published == 'false' || github.event_name == 'workflow_dispatch')
+        id: create_release
+        if: steps.gh_release.outputs.exists == 'false' && (needs.prepare.outputs.published == 'false' || github.event_name == 'repository_dispatch')
         uses: softprops/action-gh-release@v3
         with:
           tag_name: v${{ needs.prepare.outputs.version }}
@@ -141,7 +179,8 @@ jobs:
           generate_release_notes: true
 
       - name: Merge main into develop and push
-        if: needs.prepare.outputs.published == 'false' || github.event_name == 'workflow_dispatch'
+        id: sync_develop
+        if: needs.prepare.outputs.published == 'false' || github.event_name == 'repository_dispatch'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -151,3 +190,57 @@ jobs:
           git checkout -B develop origin/develop
           git merge origin/main --no-edit -m "chore: sync develop with main after v${{ needs.prepare.outputs.version }}"
           git push origin develop
+
+      - name: Write run summary
+        if: always()
+        env:
+          VERSION: ${{ needs.prepare.outputs.version }}
+          SHA: ${{ needs.prepare.outputs.sha }}
+          BUMP: ${{ github.event.client_payload.bump }}
+          ALREADY_ON_NPM: ${{ needs.prepare.outputs.published }}
+          NPM_OUTCOME: ${{ steps.npm_publish.outcome }}
+          RELEASE_EXISTED: ${{ steps.gh_release.outputs.exists }}
+          RELEASE_OUTCOME: ${{ steps.create_release.outcome }}
+          SYNC_OUTCOME: ${{ steps.sync_develop.outcome }}
+          REPO: ${{ github.repository }}
+          SERVER_URL: ${{ github.server_url }}
+        run: |
+          status_label() {
+            case "$1" in
+              success) echo "Done" ;;
+              failure) echo "Failed" ;;
+              skipped) echo "Skipped" ;;
+              cancelled) echo "Cancelled" ;;
+              *) echo "${1:-Not run}" ;;
+            esac
+          }
+
+          if [ "$ALREADY_ON_NPM" = "true" ]; then
+            NPM_STATUS="Already on npm"
+          else
+            NPM_STATUS="$(status_label "$NPM_OUTCOME")"
+          fi
+
+          if [ "$RELEASE_EXISTED" = "true" ]; then
+            RELEASE_STATUS="Already existed"
+          else
+            RELEASE_STATUS="$(status_label "$RELEASE_OUTCOME")"
+          fi
+
+          SYNC_STATUS="$(status_label "$SYNC_OUTCOME")"
+          SHORT_SHA="$(echo "$SHA" | cut -c1-7)"
+          {
+            echo "## Release ${VERSION}"
+            echo ""
+            if [ -n "$BUMP" ]; then
+              echo "Bump: \`${BUMP}\`"
+              echo ""
+            fi
+            echo "| Step | Result |"
+            echo "| --- | --- |"
+            echo "| Version | \`${VERSION}\` |"
+            echo "| Commit | [\`${SHORT_SHA}\`](${SERVER_URL}/${REPO}/commit/${SHA}) |"
+            echo "| npm | ${NPM_STATUS} — [sequelize-jest-kit@${VERSION}](https://www.npmjs.com/package/sequelize-jest-kit/v/${VERSION}) |"
+            echo "| GitHub release | ${RELEASE_STATUS} — [v${VERSION}](${SERVER_URL}/${REPO}/releases/tag/v${VERSION}) |"
+            echo "| Sync \`develop\` | ${SYNC_STATUS} |"
+          } >> "$GITHUB_STEP_SUMMARY"
