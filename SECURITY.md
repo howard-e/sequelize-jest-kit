@@ -9,7 +9,7 @@
 
 ## Reporting a Vulnerability
 
-Report a vulnerability to [the author](https://about.me/davesag) directly.
+Report an [issue](https://github.com/howard-e/sequelize-jest-kit/issues) directly.
 
 You can expect to get an update on a reported vulnerability within 2 working days.
 
