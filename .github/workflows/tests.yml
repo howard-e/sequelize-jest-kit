@@ -41,6 +41,9 @@ jobs:
       - name: Check unused code and dependencies
         run: npm run knip
 
+      - name: Check TypeScript declarations
+        run: npm run test:types
+
       - name: Run tests with enforced coverage
         run: npm run test:coverage
 
@@ -63,5 +66,6 @@ jobs:
             echo "- Commit: [\`${SHORT_SHA}\`](${SERVER_URL}/${REPO}/commit/${SHA})"
             echo "- Lint: \`npm run lint\`"
             echo "- Unused code: \`npm run knip\`"
+            echo "- TypeScript declarations: \`npm run test:types\`"
             echo "- Tests and 100% source coverage: \`npm run test:coverage\`"
           } >> "$GITHUB_STEP_SUMMARY"
